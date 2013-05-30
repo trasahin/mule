@@ -124,6 +124,7 @@ import org.mule.expression.transformers.ExpressionArgument;
 import org.mule.expression.transformers.ExpressionTransformer;
 import org.mule.interceptor.LoggingInterceptor;
 import org.mule.interceptor.TimerInterceptor;
+import org.mule.interceptor.WatermarkInterceptor;
 import org.mule.model.resolvers.ArrayEntryPointResolver;
 import org.mule.model.resolvers.CallableEntryPointResolver;
 import org.mule.model.resolvers.DefaultEntryPointResolverSet;
@@ -628,5 +629,6 @@ public class MuleNamespaceHandler extends AbstractMuleNamespaceHandler
         registerBeanDefinitionParser("custom-interceptor", new InterceptorDefinitionParser());
         registerBeanDefinitionParser("timer-interceptor", new InterceptorDefinitionParser(TimerInterceptor.class));
         registerBeanDefinitionParser("logging-interceptor", new InterceptorDefinitionParser(LoggingInterceptor.class));
+        registerBeanDefinitionParser("watermark", new InterceptorDefinitionParser(WatermarkInterceptor.class));
     }
 }

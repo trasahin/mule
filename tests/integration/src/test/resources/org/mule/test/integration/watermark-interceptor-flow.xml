@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+               http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+
+
+
+    <!-- WITHOUT OS DEFINITION -->
+
+    <flow name="createKeyValueFlow">
+        <watermark variable="test"
+                   default-expression="#[payload]"
+                   update-expression="#[test]"/>
+    </flow>
+
+    <flow name="updatedKeyValueFlow">
+        <watermark variable="test"
+                   default-expression="#[string:defaultValue]"
+                   update-expression="#[updateVariable]"/>
+
+        <set-variable variableName="updateVariable" value="#[payload]"/>
+    </flow>
+
+    <flow name="failingFlow">
+        <watermark variable="test"
+                   default-expression="#[string:defaultValue]"
+                   update-expression="#[updateVariable]"/>
+
+        <set-variable variableName="updateVariable" value="#[payload]"/>
+        <set-variable variableName="failingScenario" value="#[fail]"/>
+    </flow>
+
+    <flow name="keyAsAnExpressionFlow">
+        <watermark variable="#[keyVariable]"
+                   default-expression="#[string:defaultValue]"
+                   update-expression="#[updateVariable]"/>
+
+        <set-variable variableName="updateVariable" value="#[payload]"/>
+    </flow>
+
+    <flow name="keyAsAnExpressionThatChangesFlow">
+        <watermark variable="#[keyVariable]"
+                   default-expression="#[string:defaultValue]"
+                   update-expression="#[updateVariable]"/>
+
+        <set-variable variableName="updateVariable" value="#[payload]"/>
+        <set-variable variableName="keyVariable" value="#[string:changedKey]"/>
+    </flow>
+
+    <!-- WITH OS DEFINITION -->
+
+    <flow name="changedObjectStore">
+        <watermark variable="test"
+                   default-expression="#[payload]"
+                   update-expression="#[test]"
+                object-store-ref="_defaultInMemoryObjectStore"/>
+    </flow>
+
+</mule>
