@@ -3,12 +3,21 @@ package org.mule.test.integration.interceptor;
 import static org.junit.Assert.assertEquals;
 import org.mule.api.MuleEvent;
 import org.mule.api.config.MuleProperties;
+import org.mule.api.context.notification.CustomNotificationListener;
+import org.mule.api.context.notification.ServerNotification;
 import org.mule.api.store.ObjectStore;
 import org.mule.api.transformer.TransformerMessagingException;
 import org.mule.construct.Flow;
+import org.mule.context.notification.CustomEventNotification;
+import org.mule.context.notification.NotificationException;
 import org.mule.tck.junit4.FunctionalTestCase;
 
+import java.util.Queue;
+import java.util.Stack;
+
+import org.junit.Before;
 import org.junit.Test;
+import org.mortbay.util.ArrayQueue;
 
 /**
  * Test notes:
@@ -20,6 +29,13 @@ import org.junit.Test;
  */
 public class WatermarkInterceptorFlowTestCase extends FunctionalTestCase
 {
+    private WatermarkNotificationListener listener = new WatermarkNotificationListener();
+
+    @Before
+    public void registerListener() throws NotificationException
+    {
+        muleContext.registerListener(listener);
+    }
 
     /**
      * Scenario: The object store key does not exist and the Object store is the default one.
@@ -28,10 +44,16 @@ public class WatermarkInterceptorFlowTestCase extends FunctionalTestCase
     @Test
     public void notExistingOSKey() throws Exception
     {
+        String initialValue = "osValue";
+        String finalValue = "osValue";
+
         Flow flow = getFlow("createKeyValueFlow");
-        flow.process(getTestEvent("osValue"));
-        assertEquals("osValue", getDefaultObjectStore().retrieve("test"));
+        flow.process(getTestEvent(initialValue));
+        assertEquals(finalValue, getDefaultObjectStore().retrieve("test"));
+
+        checkNotifications(initialValue, finalValue);
     }
+
 
 
     /**
@@ -44,6 +66,9 @@ public class WatermarkInterceptorFlowTestCase extends FunctionalTestCase
         Flow flow = getFlow("changedObjectStore");
         flow.process(getTestEvent("osValue"));
         assertEquals("osValue", getObjectStore(MuleProperties.OBJECT_STORE_DEFAULT_IN_MEMORY_NAME).retrieve("test"));
+
+        checkNotifications("osValue", "osValue");
+
     }
 
     /**
@@ -59,6 +84,8 @@ public class WatermarkInterceptorFlowTestCase extends FunctionalTestCase
         Flow flow = getFlow("updatedKeyValueFlow");
         flow.process(getTestEvent("osValue"));
         assertEquals("osValue", os.retrieve("test"));
+
+        checkNotifications("existentValue", "osValue");
     }
 
     /**
@@ -73,6 +100,8 @@ public class WatermarkInterceptorFlowTestCase extends FunctionalTestCase
         Flow flow = getFlow("updateExpressionNotSet");
         flow.process(getTestEvent("osValue"));
         assertEquals("osValue", os.retrieve("test"));
+
+        checkNotifications("existentValue", "osValue");
     }
 
 
@@ -91,6 +120,8 @@ public class WatermarkInterceptorFlowTestCase extends FunctionalTestCase
         testEvent.setFlowVariable("keyVariable", "test");
         flow.process(testEvent);
         assertEquals("osValue", os.retrieve("test"));
+
+        checkNotifications("existentValue", "osValue");
     }
 
 
@@ -111,6 +142,8 @@ public class WatermarkInterceptorFlowTestCase extends FunctionalTestCase
         flow.process(testEvent);
         assertEquals("existentValue", os.retrieve("test"));
         assertEquals("osValue", os.retrieve("changedKey"));
+
+        checkNotifications("existentValue", "osValue");
     }
 
     /**
@@ -134,6 +167,7 @@ public class WatermarkInterceptorFlowTestCase extends FunctionalTestCase
         catch (TransformerMessagingException e)
         {
             assertEquals("existentValue", os.retrieve("test"));
+            assertEquals(1, listener.getNotifications().size());
         }
     }
 
@@ -156,5 +190,33 @@ public class WatermarkInterceptorFlowTestCase extends FunctionalTestCase
     protected String getConfigResources()
     {
         return "org/mule/test/integration/watermark-interceptor-flow.xml";
+    }
+
+
+    private void checkNotifications(String initialValue, String finalValue)
+    {
+        CustomEventNotification initializeEvent = listener.getNotifications().poll();
+        assertEquals("Watermark Initialized", initializeEvent.getName());
+        assertEquals(initialValue, initializeEvent.getMetaDatas().get("value"));
+
+        CustomEventNotification modifyEvent = listener.getNotifications().poll();
+        assertEquals("Watermark Modified", modifyEvent.getName());
+        assertEquals(finalValue, modifyEvent.getMetaDatas().get("value"));
+    }
+
+    private class WatermarkNotificationListener implements CustomNotificationListener<CustomEventNotification>
+    {
+        Queue<CustomEventNotification> notifications = new ArrayQueue<CustomEventNotification>();
+
+        @Override
+        public void onNotification(ServerNotification notification)
+        {
+            notifications.add((CustomEventNotification) notification);
+        }
+
+        public Queue<CustomEventNotification> getNotifications()
+        {
+            return notifications;
+        }
     }
 }

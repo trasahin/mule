@@ -39,6 +39,7 @@ import org.mule.config.i18n.MessageFactory;
 import org.mule.context.notification.AsyncMessageNotification;
 import org.mule.context.notification.ClusterNodeNotification;
 import org.mule.context.notification.ConnectionNotification;
+import org.mule.context.notification.CustomEventNotification;
 import org.mule.context.notification.CustomNotification;
 import org.mule.context.notification.ExceptionNotification;
 import org.mule.context.notification.ExceptionStrategyNotification;

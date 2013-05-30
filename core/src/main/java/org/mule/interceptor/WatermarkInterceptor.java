@@ -7,9 +7,12 @@ import org.mule.api.expression.ExpressionManager;
 import org.mule.api.interceptor.Interceptor;
 import org.mule.api.store.ObjectStore;
 import org.mule.api.store.ObjectStoreException;
+import org.mule.context.notification.CustomEventNotification;
 import org.mule.processor.AbstractInterceptingMessageProcessor;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Watermark message processor. Watermark determines the watermark value from the object store once it is
@@ -58,47 +61,7 @@ public class WatermarkInterceptor extends AbstractInterceptingMessageProcessor i
         return returnedEvent;
     }
 
-    private void storeWatermarkValue(MuleEvent returnedEvent) throws ObjectStoreException
-    {
-        Serializable objectStoreKey = evaluate(variable, returnedEvent);
-        synchronized (objectStore)
-        {
-            if (objectStore.contains(objectStoreKey))
-            {
-                objectStore.remove(objectStoreKey);
-            }
 
-            if ( updateExpression == null ){
-                objectStore.store(objectStoreKey, (Serializable) returnedEvent.getMessage().getInvocationProperty((String) objectStoreKey));
-            }
-            else{
-                objectStore.store(objectStoreKey, evaluate(updateExpression, returnedEvent));
-            }
-        }
-    }
-
-    private void addWatermarkInvocationProperty(MuleEvent event) throws ObjectStoreException
-    {
-        String objectStoreKey = (String) evaluate(variable, event);
-        if (objectStore.contains(objectStoreKey))
-        {
-            event.getMessage().setInvocationProperty(objectStoreKey, objectStore.retrieve(objectStoreKey));
-        }
-        else
-        {
-            event.getMessage().setInvocationProperty(objectStoreKey, evaluate(defaultExpression, event));
-        }
-    }
-
-    private Serializable evaluate(String expression, MuleEvent event)
-    {
-        if (expressionManager.isExpression(expression) && expressionManager.isValidExpression(expression))
-        {
-            return (Serializable) expressionManager.evaluate(expression, event);
-        }
-
-        return expression;
-    }
 
     public void setVariable(String variable)
     {
@@ -127,5 +90,73 @@ public class WatermarkInterceptor extends AbstractInterceptingMessageProcessor i
         expressionManager = muleContext.getExpressionManager();
     }
 
+    private void storeWatermarkValue(MuleEvent event) throws ObjectStoreException
+    {
+        Serializable objectStoreKey = evaluate(variable, event);
+        synchronized (objectStore)
+        {
+            cleanUpObjectStore(objectStoreKey);
+
+            Serializable watermarkValue;
+
+            if ( updateExpression == null ){
+                watermarkValue = (Serializable) event.getMessage().getInvocationProperty((String) objectStoreKey);
+            }
+            else{
+                watermarkValue = evaluate(updateExpression, event);
+            }
+
+            objectStore.store(objectStoreKey, watermarkValue);
+            muleContext.fireNotification(new CustomEventNotification(event, this, "Watermark Modified", createMetadata(watermarkValue)));
+        }
+    }
+
+    private void cleanUpObjectStore(Serializable objectStoreKey) throws ObjectStoreException
+    {
+        if (objectStore.contains(objectStoreKey))
+        {
+            objectStore.remove(objectStoreKey);
+        }
+    }
+
+    private void addWatermarkInvocationProperty(MuleEvent event) throws ObjectStoreException
+    {
+        String objectStoreKey = (String) evaluate(variable, event);
+        Serializable watermarkValue = getWatermarkValue(event, objectStoreKey);
+
+        event.getMessage().setInvocationProperty(objectStoreKey, watermarkValue);
+        muleContext.fireNotification(new CustomEventNotification(event, this, "Watermark Initialized", createMetadata(watermarkValue)));
+    }
+
+    private Serializable getWatermarkValue(MuleEvent event, String objectStoreKey) throws ObjectStoreException
+    {
+        Serializable watermarkValue;
+        if (objectStore.contains(objectStoreKey))
+        {
+            watermarkValue = objectStore.retrieve(objectStoreKey);
+        }
+        else
+        {
+            watermarkValue = evaluate(defaultExpression, event);
+        }
+        return watermarkValue;
+    }
+
+    private Map<String, String> createMetadata(Serializable watermarkValue)
+    {
+        Map<String, String> metadata = new HashMap<String, String>();
+        metadata.put("value", watermarkValue.toString());
+        return metadata;
+    }
+
+    private Serializable evaluate(String expression, MuleEvent event)
+    {
+        if (expressionManager.isExpression(expression) && expressionManager.isValidExpression(expression))
+        {
+            return (Serializable) expressionManager.evaluate(expression, event);
+        }
+
+        return expression;
+    }
 
 }
