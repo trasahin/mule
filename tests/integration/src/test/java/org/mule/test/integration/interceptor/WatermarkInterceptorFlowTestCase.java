@@ -62,6 +62,21 @@ public class WatermarkInterceptorFlowTestCase extends FunctionalTestCase
     }
 
     /**
+     * Scenario: The update expression is not set, then it takes the value to store from the variable flow var
+     */
+    @Test
+    public void updateExpressionNotSet() throws Exception
+    {
+        ObjectStore os = getDefaultObjectStore();
+        os.store("test", "existentValue");
+
+        Flow flow = getFlow("updateExpressionNotSet");
+        flow.process(getTestEvent("osValue"));
+        assertEquals("osValue", os.retrieve("test"));
+    }
+
+
+    /**
      * Scenario: The object store key IS an expression and it is updated in the object store
      * Behaviour: The key expression is evaluated and the object store is updated based on the result of that expression.
      */

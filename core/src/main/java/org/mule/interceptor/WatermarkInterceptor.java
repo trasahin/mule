@@ -67,7 +67,13 @@ public class WatermarkInterceptor extends AbstractInterceptingMessageProcessor i
             {
                 objectStore.remove(objectStoreKey);
             }
-            objectStore.store(objectStoreKey, evaluate(updateExpression, returnedEvent));
+
+            if ( updateExpression == null ){
+                objectStore.store(objectStoreKey, (Serializable) returnedEvent.getMessage().getInvocationProperty((String) objectStoreKey));
+            }
+            else{
+                objectStore.store(objectStoreKey, evaluate(updateExpression, returnedEvent));
+            }
         }
     }
 

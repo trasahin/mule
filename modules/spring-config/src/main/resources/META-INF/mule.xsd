@@ -834,7 +834,7 @@
                         </xsd:documentation>
                     </xsd:annotation>
                 </xsd:attribute>
-                <xsd:attribute name="update-expression" type="xsd:string" use="required">
+                <xsd:attribute name="update-expression" type="xsd:string" use="optional">
                     <xsd:annotation>
                         <xsd:documentation>
                             The expression to be used to update the watermark
